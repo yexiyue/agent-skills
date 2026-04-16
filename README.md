@@ -15,15 +15,13 @@
 ### 全部装到用户级
 
 ```bash
-npx skills add <owner>/agent-skills --global
+npx skills add yexiyue/agent-skills --global
 ```
-
-> 把 `<owner>` 换成本仓库的 GitHub 用户名/组织名。
 
 ### 只装某个
 
 ```bash
-npx skills add <owner>/agent-skills --skill init-dev-workflow --global
+npx skills add yexiyue/agent-skills --skill init-dev-workflow --global
 ```
 
 ### 装到当前项目
@@ -31,13 +29,13 @@ npx skills add <owner>/agent-skills --skill init-dev-workflow --global
 省略 `--global` 即装到当前目录的 `.claude/skills/`：
 
 ```bash
-npx skills add <owner>/agent-skills --skill init-dev-workflow
+npx skills add yexiyue/agent-skills --skill init-dev-workflow
 ```
 
 ### 查看有哪些 skill
 
 ```bash
-npx skills add <owner>/agent-skills --list
+npx skills add yexiyue/agent-skills --list
 ```
 
 ### 拷贝而不是 symlink
@@ -45,7 +43,7 @@ npx skills add <owner>/agent-skills --list
 Windows 下 symlink 需要开发者模式或管理员权限，建议加 `--copy`：
 
 ```bash
-npx skills add <owner>/agent-skills --global --copy
+npx skills add yexiyue/agent-skills --global --copy
 ```
 
 ## Skill 作者指南
