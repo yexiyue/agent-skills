@@ -7,6 +7,8 @@
 | Skill | 用途 |
 | ----- | ---- |
 | [init-dev-workflow](skills/init-dev-workflow/) | 为一个项目生成 dev-workflow skill + 按主题切分的 knowledge 库 + Stop hook + CLAUDE.md 集成段。支持 Tauri v2 / Expo RN / Next.js / Vite+React 四种预设 |
+| [tauri-specta](skills/tauri-specta/) | tauri-specta v2 类型安全 IPC 开发指南。Rust ↔ TypeScript 单一类型源,自动生成 bindings.ts。覆盖 `#[specta::specta]` 命令、`tauri_specta::Event`、`SpectaBuilder` 装配、bigint 处理、错误模式、CI 强制导出与常见踩坑 |
+| [uniffi-bindgen-react-native](skills/uniffi-bindgen-react-native/) | uniffi-bindgen-react-native (ubrn) 开发指南:把 Rust crate 桥接成 React Native Turbo Module(也支持 WASM)。覆盖 `ubrn.config.yaml`、类型映射、async/Promise/AbortSignal、callback_interface / Foreign Trait、Megazord 多 crate、发布,以及生产中真实踩过的 12 个 build 坑 |
 
 ## 安装
 
