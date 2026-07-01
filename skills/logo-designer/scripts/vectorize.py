@@ -19,17 +19,32 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 
 
 def quantize_color(src: Image.Image, colors: int) -> Image.Image:
     """把杂色/渐变收敛成 <=colors 个纯色色块，减少描摹后的锚点数量。"""
     rgba = src.convert("RGBA")
-    # 有 alpha 通道时，量化前把透明区域也纳入色板考虑会导致颜色浪费在"透明"这个类别上，
-    # 所以分离 alpha，只对可见的 RGB 内容量化，再把 alpha 蒙版拼回去。
     alpha = rgba.getchannel("A")
     rgb = rgba.convert("RGB")
-    quantized = rgb.quantize(colors=colors, method=Image.Quantize.MEDIANCUT)
+
+    # 调色板只从完全不透明的像素里选取，避免海量透明背景/半透明羽化边缘像素
+    # 把稀有的前景色"稀释"进同一个调色板格子（例如把靛蓝和青绿错误合并成一种颜色）。
+    alpha_arr = np.array(alpha)
+    rgb_arr = np.array(rgb)
+    opaque_pixels = rgb_arr[alpha_arr >= 250]
+    if len(opaque_pixels) == 0:
+        opaque_pixels = rgb_arr.reshape(-1, 3)
+
+    side = max(1, int(np.ceil(np.sqrt(len(opaque_pixels)))))
+    padded = np.zeros((side * side, 3), dtype=np.uint8)
+    padded[: len(opaque_pixels)] = opaque_pixels
+    palette_source = Image.fromarray(padded.reshape(side, side, 3)).quantize(
+        colors=colors, method=Image.Quantize.MEDIANCUT
+    )
+
+    quantized = rgb.quantize(colors=colors, palette=palette_source, dither=Image.Dither.NONE)
     result = quantized.convert("RGBA")
     result.putalpha(alpha)
     return result
@@ -38,11 +53,21 @@ def quantize_color(src: Image.Image, colors: int) -> Image.Image:
 def to_bitmap_pbm(src: Image.Image, threshold: float, out_path: Path) -> None:
     """转成 potrace 能读的 1-bit PBM 位图（potrace 只认 pnm/bmp，不吃 PNG）。"""
     rgba = src.convert("RGBA")
-    # 透明区域视为"白/背景"，不透明区域按亮度阈值二值化
-    bg = Image.new("RGB", rgba.size, (255, 255, 255))
-    bg.paste(rgba, mask=rgba.getchannel("A"))
-    gray = bg.convert("L")
-    bw = gray.point(lambda p: 255 if p > threshold * 255 else 0, mode="1")
+    alpha = np.array(rgba.getchannel("A"))
+
+    if alpha.min() < 250:
+        # 有真正的透明通道时，前景/背景直接按 alpha 判断，不要按亮度判断——
+        # 亮度阈值对青绿这类"本身就偏亮"的前景色会误判成背景（见 vectorize.py
+        # changelog：反白版曾经把整个青绿鸟头判没了）。
+        bw_arr = np.where(alpha > threshold * 255, 0, 255).astype(np.uint8)
+        bw = Image.fromarray(bw_arr).convert("1")
+    else:
+        # 没有 alpha 信息（比如整张图本来就不透明）时，退回按亮度二值化
+        bg = Image.new("RGB", rgba.size, (255, 255, 255))
+        bg.paste(rgba, mask=rgba.getchannel("A"))
+        gray = bg.convert("L")
+        bw = gray.point(lambda p: 255 if p > threshold * 255 else 0, mode="1")
+
     bw.save(out_path)
 
 

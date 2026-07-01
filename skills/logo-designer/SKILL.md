@@ -116,16 +116,25 @@ Style anchor（可选，写风格形容词而非品牌名，避免侵权）: [..
 
 ## 阶段 4：矢量化清理
 
-用户把定稿的位图存到本地后，用 `scripts/vectorize.py` 处理（脚本会先用 Pillow 把
-AI 出图常见的几百个杂色/微渐变色块收敛成几个纯色块，再交给 vtracer/potrace 描摹，
-避免直接描出几千个锚点的臃肿路径）：
+多数 AI 生图工具按提示词要求输出的是纯色背景（比如 "pure white background"，
+详见阶段 1 的背景要求说明），而不是真正的 alpha 透明，直接矢量化会把背景也描成一个
+实色矩形。先用 `scripts/flatten_bg.py` 抠成透明背景：
+
+```bash
+python3 scripts/flatten_bg.py input.png -o input-transparent.png
+```
+
+再用 `scripts/vectorize.py` 处理（脚本会先用 Pillow 把 AI 出图常见的几百个杂色/微渐变
+色块收敛成几个纯色块，再交给 vtracer/potrace 描摹，避免直接描出几千个锚点的臃肿路径；
+颜色量化只从完全不透明的像素取样，避免背景像素稀释掉稀有的前景色）：
 
 ```bash
 # 多色扁平图形（默认量化成6色）
-python3 scripts/vectorize.py input.png -o logo-color.svg --mode color --colors 6
+python3 scripts/vectorize.py input-transparent.png -o logo-color.svg --mode color --colors 6
 
-# 单色线稿/纯图标（用于生成纯黑版）
-python3 scripts/vectorize.py input.png -o logo-black.svg --mode mono
+# 单色线稿/纯图标（用于生成纯黑版；有 alpha 通道时按透明度而不是亮度判断前景，
+# 避免青绿这类偏亮的前景色被误判成背景丢失）
+python3 scripts/vectorize.py input-transparent.png -o logo-black.svg --mode mono
 ```
 
 脚本跑完会报告一个大致的锚点数，超过 800 说明还需要继续简化——要么调低 `--colors`、
@@ -136,6 +145,21 @@ python3 scripts/vectorize.py input.png -o logo-black.svg --mode mono
 
 ```bash
 python3 scripts/recolor.py logo-black.svg -o logo-white.svg --color "#FFFFFF"
+```
+
+如果图标定稿是从字母造型演化来的（Lettermark/Abstract 混合技法），且需要出一版带
+品牌名文字的组合标，优先用真实字体轮廓而不是让 AI 重新生成一遍图标+文字（AI 每次
+重绘图标细节都会有细微差异，容易跟已定稿的图标版本不一致）：
+
+```bash
+# 品牌名转矢量（用系统字体的真实轮廓，不依赖字体文件即可显示/编辑）
+python3 scripts/text_to_svg.py "BrandName" -o wordmark.svg \
+  --font "/System/Library/Fonts/Avenir Next.ttc" --face 2 --size 200 --color "#112953"
+
+# 图标 + wordmark 拼成组合标，按 Cap Height 对齐、按图标高度的比例给间距
+python3 scripts/compose_lockup.py --icon logo-color.svg --text "BrandName" \
+  --font "/System/Library/Fonts/Avenir Next.ttc" --face 2 --color "#112953" \
+  --cap-ratio 0.68 --gap-ratio 0.6 -o lockup.svg
 ```
 
 这一步同时要对照 `references/design-principles-guide.md` 的判断层规则做人工修正指导，
@@ -184,6 +208,9 @@ python3 scripts/size_preview.py -o contact-sheet.png \
 - `references/ai-generation-guide.md` —— 执行层：AI 绘图工具对比、提示词公式与模板、
   常见翻车点与规避、矢量化与商用化处理流程
 - `assets/brand-guideline-template.md` —— 迷你品牌规范文档模板
+- `scripts/flatten_bg.py` —— 把 AI 出图常见的纯色背景转成真正的 alpha 透明背景
 - `scripts/vectorize.py` —— 位图转矢量清理（vtracer 彩色 / potrace 单色）
 - `scripts/recolor.py` —— 从已有矢量/位图派生纯色版本（用于生成黑白反白版）
+- `scripts/text_to_svg.py` —— 用字体真实轮廓把文字转成矢量路径（wordmark 转曲）
+- `scripts/compose_lockup.py` —— 把图标 SVG 和文字拼成对齐良好的图标+wordmark 组合标
 - `scripts/size_preview.py` —— 多尺寸 x 多背景可用性测试联系表
